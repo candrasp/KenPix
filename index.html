@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/png" href="/icon.png" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kenpix - Image Converter</title>
+  <!-- Critical CSS: prevent background flash before Tailwind/JS loads -->
+  <style>
+    html, body {
+      background-color: #09090b;
+      color: #fafafa;
+    }
+    body > header, body > main { opacity: 0; transition: opacity 0.2s ease; }
+    body.css-ready > header, body.css-ready > main { opacity: 1; }
+    #app-loading {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      background: #09090b;
+      color: #fafafa;
+      transition: opacity 0.25s ease, visibility 0.25s ease;
+    }
+    #app-loading::before {
+      content: "";
+      width: 48px;
+      height: 48px;
+      border: 4px solid #27272a;
+      border-top-color: #6366f1;
+      border-radius: 9999px;
+      animation: app-loading-spin 0.8s linear infinite;
+    }
+    #app-loading p {
+      margin: 0;
+      color: #a1a1aa;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 14px;
+    }
+    body.css-ready #app-loading {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    @keyframes app-loading-spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+
+<body class="bg-[#09090b] text-[#fafafa] min-h-screen flex flex-col font-sans antialiased">
+
+  <div id="app-loading" role="status" aria-live="polite">
+    <p>Loading Kenpix...</p>
+  </div>
+
+  <header class="sticky top-0 z-50 flex items-center justify-end px-6 py-2">
+    <nav class="flex gap-2">
+      <button id="nav-home" class="p-2 rounded-md bg-[#27272a] text-[#fafafa] transition-colors cursor-pointer">
+        <i data-lucide="home" class="w-5 h-5"></i>
+      </button>
+      <button id="nav-settings"
+        class="p-2 rounded-md text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#27272a]/50 transition-colors cursor-pointer">
+        <i data-lucide="settings" class="w-5 h-5"></i>
+      </button>
+      <button id="nav-history"
+        class="p-2 rounded-md text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#27272a]/50 transition-colors cursor-pointer">
+        <i data-lucide="history" class="w-5 h-5"></i>
+      </button>
+    </nav>
+  </header>
+
+  <main class="flex-1 p-2 flex flex-col w-full max-w-3xl mx-auto">
+
+    <!-- HOME VIEW -->
+    <section id="view-home" class="w-full flex flex-col gap-6">
+      <div class="text-center space-y-2">
+        <h2 class="text-3xl font-bold tracking-tight">Convert Images</h2>
+        <p class="text-[#a1a1aa]">Easily transform your images to multiple formats instantly.</p>
+      </div>
+
+      <!-- Drop Zone -->
+      <div id="drop-zone"
+        class="border-2 border-dashed border-[#27272a] rounded-xl p-12 flex flex-col items-center justify-center gap-4 bg-[#18181b]/50 hover:bg-[#18181b]/80 transition-colors cursor-pointer group">
+        <div
+          class="w-16 h-16 rounded-full bg-[#27272a] flex items-center justify-center group-hover:scale-110 transition-transform">
+          <i data-lucide="upload-cloud" class="w-8 h-8 text-[#a1a1aa] group-hover:text-[#fafafa] transition-colors"></i>
+        </div>
+        <div class="text-center">
+          <p class="text-lg font-medium">Drag & Drop images here</p>
+          <p class="text-sm text-[#a1a1aa]">Supports PNG, JPG, JPEG, WEBP, AVIF</p>
+        </div>
+      </div>
+
+      <!-- Files List & Target Format (Initially Hidden) -->
+      <div id="files-section" class="hidden space-y-4">
+        <div class="glass rounded-xl p-4">
+          <h3 class="font-medium mb-3">Selected Files (<span id="file-count">0</span>)</h3>
+          <div id="files-list" class="space-y-2 max-h-50 overflow-y-auto pr-2">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+        <div class="glass rounded-xl p-6 flex flex-col sm:flex-row items-center gap-4 justify-between">
+          <div class="flex items-center gap-3 w-full sm:w-auto">
+            <label class="text-sm font-medium whitespace-nowrap">Convert to:</label>
+            <select id="format-select"
+              class="bg-[#27272a] border border-[#27272a] rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full sm:w-auto">
+              <option value="png">PNG</option>
+              <option value="jpg">JPG</option>
+              <option value="jpeg">JPEG</option>
+              <option value="webp">WEBP</option>
+              <option value="avif">AVIF</option>
+            </select>
+          </div>
+
+          <button id="btn-convert"
+            class="w-full sm:w-auto bg-linear-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white px-8 py-2.5 rounded-lg font-medium transition-all transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer">
+            Start Convert
+          </button>
+        </div>
+      </div>
+
+      <!-- Converting View (Initially Hidden) -->
+      <div id="converting-section" class="flex-1 flex flex-col items-center justify-center py-12"
+        style="display: none;">
+        <div class="w-full max-w-md space-y-6">
+          <div class="text-center space-y-2">
+            <i data-lucide="refresh-cw" class="w-12 h-12 mx-auto text-indigo-500 animate-spin"></i>
+            <h3 class="text-xl font-medium">Converting images...</h3>
+            <p class="text-sm text-[#a1a1aa]">Please wait while we process your files.</p>
+          </div>
+
+          <div class="space-y-2">
+            <div class="flex justify-between text-sm font-medium">
+              <span>Progress</span>
+              <span id="progress-text">0%</span>
+            </div>
+            <div class="w-full h-3 bg-[#27272a] rounded-full overflow-hidden">
+              <div id="progress-bar"
+                class="h-full bg-linear-to-r from-indigo-500 to-purple-600 transition-all duration-300 ease-out"
+                style="width: 0%"></div>
+            </div>
+          </div>
+
+          <!-- Cancel Button -->
+          <div class="text-center pt-2">
+            <button id="btn-cancel"
+              class="inline-flex items-center gap-2 px-6 py-2 rounded-lg text-sm font-medium text-[#a1a1aa] hover:text-red-400 hover:bg-red-500/10 border border-[#27272a] hover:border-red-500/40 transition-all cursor-pointer">
+              <i data-lucide="x" class="w-4 h-4"></i>
+              Cancel Convert
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Done View (Initially Hidden) -->
+      <div id="done-section" class="flex-1 flex flex-col items-center justify-center py-12" style="display: none;">
+        <div class="glass rounded-xl p-8 max-w-lg w-full text-center space-y-6">
+          <div class="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto">
+            <i data-lucide="check-circle-2" class="w-10 h-10 text-green-500"></i>
+          </div>
+
+          <div class="space-y-2">
+            <h3 class="text-2xl font-bold">Conversion Complete!</h3>
+            <p class="text-muted-foreground">Successfully converted files.</p>
+          </div>
+
+          <div class="bg-[#27272a]/50 rounded-lg p-4 text-left space-y-2">
+            <p class="text-sm font-medium border-b border-[#27272a] pb-2 mb-2">Summary</p>
+            <div id="summary-list" class="space-y-2 max-h-37.5 overflow-y-auto pr-2">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <button id="btn-restart"
+            class="w-full bg-[#27272a] hover:bg-[#27272a]/80 text-[#fafafa] px-8 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 cursor-pointer">
+            <i data-lucide="refresh-cw" class="w-5 h-5"></i>
+            Convert More Files
+          </button>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- SETTINGS VIEW (Initially Hidden) -->
+    <section id="view-settings" class="w-full flex flex-col gap-8" style="display: none;">
+      <div class="space-y-2">
+        <h2 class="text-3xl font-bold tracking-tight">Settings</h2>
+        <p class="text-[#a1a1aa]">Manage your application preferences.</p>
+      </div>
+
+      <div class="space-y-6">
+        <section class="glass rounded-xl p-6 space-y-4">
+          <div class="flex items-center gap-2 text-lg font-medium border-b border-[#27272a] pb-2">
+            <i data-lucide="folder" class="w-5 h-5 text-indigo-400"></i>
+            <h3>Storage Location</h3>
+          </div>
+
+          <div class="space-y-3">
+            <p class="text-sm text-[#a1a1aa]">
+              Converted images will be saved here. Sub-folders will be created automatically based on the selected
+              format (e.g., <span class="font-mono text-primary bg-secondary px-1 rounded">\png</span>).
+            </p>
+
+            <div class="flex gap-2">
+              <input type="text" id="settings-output-dir" readonly
+                class="flex-1 bg-[#27272a] border border-[#27272a] rounded-lg px-4 py-2 text-sm focus:outline-none"
+                value="C:\Users\Default\Pictures" />
+              <button id="btn-browse"
+                class="bg-[#fafafa] text-[#18181b] hover:bg-[#fafafa]/90 px-4 py-2 rounded-lg font-medium text-sm transition-colors cursor-pointer">
+                Browse...
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section class="glass rounded-xl p-6 space-y-4">
+          <div class="flex items-center gap-2 text-lg font-medium border-b border-[#27272a] pb-2">
+            <i data-lucide="info" class="w-5 h-5 text-indigo-400"></i>
+            <h3>About</h3>
+          </div>
+
+          <div class="flex justify-between items-center py-2">
+            <span class="text-sm font-medium">Kenpix Version</span>
+            <span class="text-sm bg-[#27272a] px-2 py-1 rounded-md">1.0.0</span>
+          </div>
+          <p class="text-xs text-[#a1a1aa]">
+            Current capabilities: Convert files from PNG, JPG, JPEG, WEBP, AVIF to PNG, JPG, JPEG, WEBP, AVIF.
+          </p>
+        </section>
+      </div>
+    </section>
+
+    <!-- HISTORY VIEW (Initially Hidden) -->
+    <section id="view-history" class="w-full flex flex-col gap-6" style="display: none;">
+      <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div class="space-y-2">
+          <h2 class="text-3xl font-bold tracking-tight">History</h2>
+          <p class="text-[#a1a1aa]">View your converted images and output folders.</p>
+        </div>
+        <button id="btn-clear-history"
+          class="px-4 py-2 rounded-lg text-sm font-medium text-[#a1a1aa] hover:text-red-400 hover:bg-red-500/10 border border-[#27272a] hover:border-red-500/40 transition-all cursor-pointer">
+          Clear History
+        </button>
+      </div>
+
+      <div id="history-empty" class="glass rounded-xl p-8 text-center space-y-3">
+        <div class="w-16 h-16 rounded-full bg-[#27272a] flex items-center justify-center mx-auto">
+          <i data-lucide="history" class="w-8 h-8 text-[#a1a1aa]"></i>
+        </div>
+        <div class="space-y-1">
+          <h3 class="font-medium">No conversion history yet</h3>
+          <p class="text-sm text-[#a1a1aa]">Converted files will appear here after a successful conversion.</p>
+        </div>
+      </div>
+
+      <div id="history-list" class="space-y-0">
+        <!-- Dynamically populated -->
+      </div>
+    </section>
+
+  </main>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+
+</html>
