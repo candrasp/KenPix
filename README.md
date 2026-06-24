@@ -63,6 +63,27 @@ Karena menggunakan **Tauri**, aplikasi ini tetap ringan dibanding aplikasi deskt
 - `public/` - aset publik
 - `index.html` - entry point aplikasi
 
+## Konfigurasi Keamanan Frontend
+
+Project ini memiliki pengaturan JavaScript sederhana untuk mengontrol interaksi tertentu pada aplikasi. Konfigurasi ini berada di [src/main.ts](/c:/laragon/Tauri%20Project/kenpix/src/main.ts).
+
+```ts
+const appSecuritySettings = {
+  disableContextMenu: true,
+  disableDevToolsShortcuts: true,
+};
+```
+
+Penjelasan opsi:
+
+- `disableContextMenu`  
+  Jika bernilai `true`, klik kanan pada aplikasi akan dinonaktifkan.
+
+- `disableDevToolsShortcuts`  
+  Jika bernilai `true`, shortcut seperti `F12`, `Ctrl+Shift+I`, `Ctrl+Shift+J`, `Ctrl+Shift+C`, dan `Ctrl+U` akan diblokir.
+
+Jika developer lain ingin mengaktifkan kembali fitur tersebut saat development atau debugging, cukup ubah nilainya menjadi `false`.
+
 ## Menjalankan Project
 
 ### 1. Install dependency

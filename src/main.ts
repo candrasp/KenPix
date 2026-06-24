@@ -16,6 +16,11 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import "./App.css";
+// opsi untuk mematikan klik kanan dan dev tools
+const appSecuritySettings = {
+  disableContextMenu: true,
+  disableDevToolsShortcuts: true,
+};
 
 // Interface for Tauri progress payload
 interface ProgressPayload {
@@ -98,6 +103,31 @@ const btnClearHistory = document.getElementById("btn-clear-history") as HTMLButt
 
 const activeNavClass = "p-2 rounded-md bg-[#27272a] text-[#fafafa] transition-colors cursor-pointer";
 const inactiveNavClass = "p-2 rounded-md text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#27272a]/50 transition-colors cursor-pointer";
+
+function initInteractionGuards() {
+  if (appSecuritySettings.disableContextMenu) {
+    document.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+    });
+  }
+
+  if (appSecuritySettings.disableDevToolsShortcuts) {
+    document.addEventListener("keydown", (event) => {
+      const isF12 = event.key === "F12";
+      const isCtrlShiftI =
+        event.ctrlKey && event.shiftKey && event.key.toLowerCase() === "i";
+      const isCtrlShiftJ =
+        event.ctrlKey && event.shiftKey && event.key.toLowerCase() === "j";
+      const isCtrlShiftC =
+        event.ctrlKey && event.shiftKey && event.key.toLowerCase() === "c";
+      const isCtrlU = event.ctrlKey && event.key.toLowerCase() === "u";
+
+      if (isF12 || isCtrlShiftI || isCtrlShiftJ || isCtrlShiftC || isCtrlU) {
+        event.preventDefault();
+      }
+    });
+  }
+}
 
 function showView(view: "home" | "settings" | "history") {
   viewHome.style.display = view === "home" ? "flex" : "none";
@@ -203,7 +233,7 @@ function renderHistory() {
   btnClearHistory.style.display = conversionHistory.length === 0 ? "none" : "inline-flex";
 
   historyList.innerHTML = conversionHistory.map((item) => `
-    <button type="button" class="glass rounded-none p-4 flex gap-4 items-center w-full text-left cursor-pointer hover:bg-[#161618] transition-colors" data-history-folder="${item.outputFolder}" title="Buka folder output">
+    <button type="button" class="glass rounded-none p-2 flex gap-4 items-center w-full text-left cursor-pointer hover:bg-[#161618] transition-colors border-t-0" data-history-folder="${item.outputFolder}" title="Buka folder output">
       <div class="w-20 h-20 rounded-lg bg-[#27272a] overflow-hidden shrink-0 flex items-center justify-center">
         <img src="${convertFileSrc(item.outputPath)}" alt="${item.name}" class="w-full h-full object-cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
         <i data-lucide="image" class="w-8 h-8 text-[#a1a1aa]" style="display: none;"></i>
@@ -414,6 +444,7 @@ listen<ProgressPayload>("convert-progress", (event) => {
 
 // Bootstrap
 document.addEventListener("DOMContentLoaded", () => {
+  initInteractionGuards();
   initIcons();
   loadHistory();
   renderHistory();
